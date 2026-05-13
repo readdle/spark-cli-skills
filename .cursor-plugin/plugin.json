@@ -1,0 +1,23 @@
+{
+  "name": "spark",
+  "displayName": "Spark",
+  "version": "1.0.0",
+  "description": "Give Cursor unified access to your email, calendar, contacts, and meeting notes through Spark on Mac. Works across Gmail, Outlook, iCloud, Exchange, and IMAP accounts. Cursor can search semantically, read threads and attachments, check availability, draft replies, and organize messages across every connected account.",
+  "author": {
+    "name": "Spark Mail Limited"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/readdle/spark-cli-skills",
+  "repository": "https://github.com/readdle/spark-cli-skills",
+  "keywords": [
+    "spark",
+    "email",
+    "calendar",
+    "contacts",
+    "meetings",
+    "inbox",
+    "scheduling"
+  ],
+  "skills": "./skills/",
+  "logo": "./assets/logo.png"
+}
