@@ -1,0 +1,43 @@
+{
+  "name": "spark-cli-skills",
+  "version": "1.1.0",
+  "description": "AI agent skills for the Spark CLI - email, calendar, contacts, teams, and meetings workflows.",
+  "author": {
+    "name": "Spark Mail Limited",
+    "url": "https://sparkmailapp.com"
+  },
+  "homepage": "https://sparkmailapp.com",
+  "repository": "https://github.com/readdle/spark-cli-skills",
+  "license": "MIT",
+  "keywords": [
+    "spark",
+    "email",
+    "calendar",
+    "contacts",
+    "meetings",
+    "inbox",
+    "scheduling"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Spark",
+    "shortDescription": "Email and calendar workflows for the Spark CLI",
+    "longDescription": "Give Codex unified access to your email, calendar, contacts, and meeting notes through Spark on Mac. Works across Gmail, Outlook, iCloud, Exchange, and IMAP accounts. Claude can search semantically, read threads and attachments, check availability, draft replies, and organize messages across every connected account.",
+    "developerName": "Spark Mail Limited",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://sparkmailapp.com",
+    "privacyPolicyURL": "https://sparkmailapp.com/legal/privacy-app",
+    "termsOfServiceURL": "https://sparkmailapp.com/legal/terms",
+    "defaultPrompt": [
+      "Use Spark to run my morning standup.",
+      "Use Spark to triage my inbox by category.",
+      "Use Spark to prep for my next meeting."
+    ],
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}
