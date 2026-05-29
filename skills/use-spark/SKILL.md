@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.1.0
+  version: 1.2.1
   requires:
     bins:
       - spark
@@ -33,7 +33,10 @@ spark <command> [options]
 | `emails` | List emails with filters and pagination |
 | `search` | Hybrid keyword + semantic search with full bodies |
 | `thread` | Read full thread - headers, bodies, attachments |
-| `draft` | Create or edit an email draft (new, reply, forward) |
+| `attachment` | Read a single email attachment by its ID (auto-downloads) |
+| `draft` | Create or edit an email draft (new, reply, forward, from template) |
+| `templates` | List saved message templates (personal and team) |
+| `template` | Show a single template by ID or name with its placeholders |
 | `comment` | Post a team comment on a thread |
 | `events` | List calendar events for a time range |
 | `availability` | Find free time slots, optionally with attendees |
@@ -128,22 +131,33 @@ spark emails --new-senders                                     # show only new s
 
 ### search
 
-Hybrid keyword + semantic search returning up to 20 emails with full bodies, sorted by relevance.
+Two modes:
+
+- **With a topic (keyword mode):** Hybrid keyword + semantic search returning up to 20 emails with full bodies, sorted by relevance.
+- **Without a topic (list mode):** Paged compact table of every email matching `--filter` / `--in` across all folders and all accounts, sorted newest first. Same output as `emails`, but the default scope is "all folders" instead of the Unified Inbox. Trash, Spam, and Blocked are excluded (matching Spark's search field) unless `--in` explicitly targets one of those folders.
 
 ```bash
 spark search "quarterly report"
 spark search "API integration" --filter "from:alice@co.com"
 spark search "budget" --in user@example.com:Archive
 spark search "vacation" --in user@example.com              # all folders in account
+
+# Keywordless list mode - filter across every folder
+spark search --filter "from:alice@co.com"                  # every email from alice, all folders
+spark search --filter "from:alice@co.com" --in user@example.com
+spark search --filter "is:unread newer_than:7d" --page 2
 ```
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `<about>` | Yes | Search topic (positional) |
+| `<about>` | No | Search topic (positional). Omit to switch to list mode. |
 | `--filter` | No | Gmail-style filter (same operators as `emails`) |
 | `--in` | No | Scope: account, team, folder, or shared inbox. All folders if omitted. |
+| `--page` | No | Page number, 1-based (default: 1). List mode only. |
+| `--page-size` | No | Emails per page (default: 50). List mode only. |
+| `--order` | No | Sort order: `ascending` or `descending`. List mode only. |
 
-**Use `search` when the user asks about a topic.** It returns email bodies so you can answer questions about content. Use `emails` when listing/browsing by folder or filters without needing bodies.
+**Use `search` with a topic when the user asks about content** - it returns email bodies so you can answer questions. **Use `search` without a topic when you need to filter emails (especially by `from:`) across every folder** - `emails` only sees the Unified Inbox so it can't answer questions like "every email from alice@co.com, anywhere". Use `emails` for plain browsing of Inbox / one folder.
 
 ### thread
 
@@ -152,9 +166,30 @@ Print every message in a thread - headers, full plain-text bodies, and attachmen
 ```bash
 spark thread 1114                          # by message ID from emails/search output
 spark thread --download-attachments 1114   # also fetch attachments via IMAP
+spark thread "https://sparkmailapp.com/dpl/bl?token=ABC..."  # by Spark deep link
 ```
 
+The positional argument accepts either a numeric message ID (the `ID:` line) or a Spark deep link (the `Link:` line) printed by a previous run - `https://sparkmailapp.com/dpl/bl?token=...`, `readdle-spark://bl=...`, or `readdlespark://bl=...`.
+
+Each message's `Attachments:` block is a table with columns `ID`, `Name`, `Size`, `MIME Type`, and `Path`. The `ID` column is the attachment's stable pk - feed it to `attachment` to read the file contents (auto-downloads if necessary). The `Path` column shows the local file or `(not downloaded, ...)` for attachments not yet fetched.
+
 Use `emails` or `search` to find message IDs (the ID column), then `thread` to read the full conversation. Use `folders` to list valid label identifiers for `action attachLabel` / `detachLabel`.
+
+### attachment
+
+Read a single email attachment by its ID (pk) from the `thread` Attachments table. The file is auto-downloaded if it isn't cached locally yet.
+
+```bash
+spark attachment 42                          # print metadata (ID, Name, Size, MIME Type, Path, Message ID)
+spark attachment 42 --stream > report.pdf    # write raw file bytes to stdout
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `<id>` | Yes | Attachment ID (pk) from the `thread` Attachments table. |
+| `--stream` | No | Write the raw file bytes to stdout instead of metadata text. Useful inside sandboxed agents that can read the CLI's stdout but not local filesystem paths. The CLI streams the file in 64 KB chunks, so there is no practical size limit. |
+
+Use `thread` to find attachment IDs (the `ID` column in the `Attachments:` table). The default text output is one `Key: value` per line, easy to parse from scripts.
 
 ### draft
 
@@ -171,6 +206,16 @@ spark draft --forward 5678 --to "manager@co.com" --body "FYI"
 spark draft --account "john@gmail.com" --to "alice@co.com" --subject "Hi" --body "..."
 spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach /path/to/report.pdf
 spark draft --to "alice@co.com" --subject "Files" --body "Two files" --attach /path/to/a.pdf --attach /path/to/b.xlsx
+spark draft --to "client@co.com" --subject "Proposal" --body "..." --team "Engineering" --user alice@co.com --user bob@co.com
+spark draft --edit 1234 --team "Engineering" --user alice@co.com --allow-send
+spark draft --edit 1234 --user carol@co.com           # invite carol on an already-shared draft
+spark draft --edit 1234 --allow-send                  # grant send-on-behalf permission on an already-shared draft
+spark draft --edit 1234 --no-allow-send               # revoke previously-granted send-on-behalf permission
+spark draft --edit 1234 --remove-user alice@co.com    # kick alice from a shared draft (keeps share, comments, other collaborators)
+spark draft --edit 1234 --remove-user alice@co.com --user dave@co.com  # swap collaborators: remove alice, invite dave
+spark draft --edit 1234 --unshare
+spark draft --template "Cold outbound v3" --to "alice@co.com" --placeholder "Project name=Acme Q3" --placeholder "Deadline=Friday EOD"
+spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --placeholder "Deadline=Friday EOD"
 ```
 
 | Parameter | Required | Description |
@@ -179,14 +224,65 @@ spark draft --to "alice@co.com" --subject "Files" --body "Two files" --attach /p
 | `--cc` | No | CC address. Repeat for multiple. |
 | `--bcc` | No | BCC address. Repeat for multiple. |
 | `--subject` | No | Subject line. |
-| `--body` | Yes (new) | Body content in markdown. Required for new drafts. |
+| `--body` | Yes (new, no `--template`) | Body content in markdown. Required for new drafts unless a template provides one. |
 | `--edit` | No | Message ID of an existing draft to update. |
 | `--reply-to` | No | Message ID to reply to. |
 | `--forward` | No | Message ID to forward. |
 | `--account` | No | Account email to send from. Accepts a regular mail account, an alias, or a shared inbox email. |
 | `--attach` | No | Absolute path to a file to attach. Repeat for multiple. |
+| `--team` | No | Team name. Required when you belong to multiple teams. When editing a draft that's already shared, must match the team that owns the share. |
+| `--user` | No | Teammate email to share with. Repeat for multiple. On an already-shared draft this **adds** collaborators without removing existing ones - use `--remove-user` to remove someone. |
+| `--remove-user` | No | Teammate email to **remove** from an already-shared draft. Repeat for multiple. The shared draft, its comments, and the remaining collaborators are preserved (unlike `--unshare`, which tears the whole share down). Requires `--edit <shared-pk>`. Cannot remove yourself - use `--unshare` for that. Can be combined with `--user` in one command to swap collaborators; removals run before invites. |
+| `--allow-send` | No | Grant teammates permission to send the shared draft on your behalf. New share: defaults to off when omitted. Edit of a shared draft: leaves the current value alone when omitted. Mutually exclusive with `--no-allow-send`. |
+| `--no-allow-send` | No | Revoke teammates' permission to send the shared draft on your behalf. Useful when editing a shared draft whose allow-send is currently on. Mutually exclusive with `--allow-send`. |
+| `--unshare` | No | Revert an already-shared draft back to a personal draft. Requires `--edit` and is mutually exclusive with `--team` / `--user` / `--remove-user` / `--allow-send` / `--no-allow-send` **and** with content edits (`--to` / `--cc` / `--bcc` / `--subject` / `--body` / `--attach`) - issue the edit (or per-user removal) and the unshare as separate commands. |
+| `--template` | No | Apply a saved template by ID or name. Combine with `--edit` to overlay onto an existing draft. |
+| `--placeholder` | When template has manual placeholders | Fill a manual template placeholder, format `"<name>=<value>"`. Repeat for each. Auto-fillable placeholders (recipient/self names) are not addressable here - control them via `--to` and `--account`. |
 
-Use `emails` to find message IDs for `--edit`, `--reply-to`, and `--forward`. Use `accounts` to find account emails for `--account` - both personal accounts and shared inboxes are listed there, and either can be used as the from address when the account has draft & comment access.
+Explicit flags always win over template fields. Use `template <id|name>` to discover the template's manual placeholders before calling `draft --template` - missing manual placeholders cause a hard error before any draft is created. Auto-fillable placeholders that fail to resolve (e.g. recipient name with multiple `--to`) leave a localized label in the body and surface in the response as a warning.
+
+Use `emails` to find message IDs for `--edit`, `--reply-to`, and `--forward`.
+Use `accounts` to find account emails for `--account` - both personal accounts and shared inboxes are listed there, and either can be used as the from address when the account has draft & comment access.
+Use `teams` to find team names for `--team` and team member emails for `--user`.
+
+**Threading is critical.** Whenever a new message belongs to an existing conversation, you **must** pass `--reply-to` with the **last message in that thread**. This is what attaches the draft to the conversation (correct In-Reply-To / References headers, same thread in the recipient's mailbox). Without `--reply-to` the draft starts a brand new thread, which is almost always wrong when the user asked you to "reply", "respond", "follow up", "answer", or "ping" anyone in the context of an existing conversation. Use `thread <id>` to inspect the conversation and pick the most recent message's ID as `--reply-to`.
+
+**Follow-ups (no response yet).** When the user asks to follow up with someone you already emailed and they haven't replied yet (e.g. "send Alice a nudge - she never responded to my last email", "bump the proposal thread"), the most recent message in that thread is your own outgoing one. Use that message's ID as `--reply-to` - the follow-up stays attached to the original outgoing message so the recipient sees it as a bump on the existing conversation rather than a new cold email.
+
+Sharing is triggered by the presence of `--team` or `--user`; teams with exactly one other active member auto-share with everyone, otherwise `--user` is required.
+To add collaborators or change the allow-send setting on an existing shared draft, use `--edit <pk>` together with the sharing flags - the change is applied to the existing share instead of creating a new one.
+To toggle allow-send off, pass `--no-allow-send`.
+To remove a specific collaborator without tearing the share down, pass `--remove-user <email>`; the shared draft, its comments, and the remaining collaborators stay intact. Combine `--user` and `--remove-user` in one command to swap collaborators in a single operation - removals run before invites.
+Content edits (`--to`, `--cc`, `--bcc`, `--subject`, `--body`, `--attach`) and sharing updates (`--team`, `--user`, `--remove-user`, `--allow-send`, `--no-allow-send`) must be issued as separate `draft` commands.
+
+### templates
+
+List Spark message templates - the saved drafts users can apply via `draft --template`. Templates round-trip from desktop, so anything saved on the user's Mac shows up here.
+
+```bash
+spark templates                          # all personal + team templates
+spark templates --personal               # only personal templates
+spark templates --team "Marketing"       # only that team's templates
+spark templates --page 2 --page-size 20  # pagination
+```
+
+Output columns: `ID`, `Scope` (Personal / `<team name>`), `Name`, `Subject` (truncated to 40 chars), `Modified`. Use the `ID` or `Name` value with `template <id|name>` and `draft --template`.
+
+### template
+
+**Read-only.** Show a single template's full contents and its placeholder requirements. Run this before `draft --template` so you know which `--placeholder "<name>=<value>"` arguments the template needs.
+
+```bash
+spark template 123                       # by ID
+spark template "Welcome reply"           # by name (case-insensitive)
+```
+
+Output includes scope, recipients, subject, body (HTML stripped to text), attachments, and a `Placeholders:` section listing every placeholder in the template:
+
+- `[auto]` - auto-fillable (recipient/self name). Resolved from `--to` and `--account` when applied. **Not** overridable via `--placeholder`.
+- `[manual]` - free-form placeholder. Required: must be passed as `--placeholder "<name>=<value>"` to `draft --template`.
+
+If a name matches more than one template, you'll get an error listing the matching IDs - disambiguate by ID.
 
 ### comment
 
@@ -283,7 +379,10 @@ spark meeting 42                            # summary only
 spark meeting --transcript 42               # include transcript
 spark meeting --notes 42                    # include notes
 spark meeting --transcript --notes 42       # everything
+spark meeting "https://sparkmailapp.com/dpl/bl?token=ABC..."  # by Spark deep link
 ```
+
+The positional argument accepts either a numeric meeting message ID or a Spark deep link.
 
 Use `meetings` to find meeting IDs.
 
@@ -458,6 +557,11 @@ spark contact-action enableAutosummaryForContact newsletter@example.com # AI sum
 **Draft a reply:**
 1. `spark emails --filter "from:sender"` - find the email
 2. `spark draft --reply-to <ID> --body "Thanks for the update!"`
+
+**Send an email from a saved template:**
+1. `spark templates` - list templates (or `spark templates --personal` / `--team "<name>"`)
+2. `spark template "<name>"` - inspect placeholders before applying
+3. `spark draft --template "<name>" --to <recipient> --placeholder "<manual>=<value>"` - create the draft (repeat `--placeholder` for each manual one)
 
 **Check someone's schedule for a meeting:**
 1. `spark availability --tomorrow --attendees alice@co.com,bob@co.com`
