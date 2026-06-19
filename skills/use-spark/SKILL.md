@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.2.1
+  version: 1.2.2
   requires:
     bins:
       - spark
@@ -22,7 +22,7 @@ metadata:
 spark <command> [options]
 ```
 
-**Environment:** `spark` is a thin client that talks over IPC to the user's running Spark macOS Desktop app - it does not ship its own mailbox, network stack, or credentials. Run it directly on the user's Mac against the live Spark Desktop process. Do not try to execute it inside a sandbox, container, CI runner, or any environment isolated from the user's desktop session - it will fail to connect. If Spark Desktop is not running, ask the user to launch it instead of retrying.
+**Environment:** `spark` is a thin client that talks over IPC to the user's running Spark Desktop app - it does not ship its own mailbox, network stack, or credentials. Run it directly on the user's computer against the live Spark Desktop process. Do not try to execute it inside a sandbox, container, CI runner, or any environment isolated from the user's desktop session - it will fail to connect. If Spark Desktop is not running, ask the user to launch it instead of retrying.
 
 ## Commands
 
@@ -62,7 +62,7 @@ Run this first to discover what accounts, calendars, and teams are available, an
 | Level | Allowed operations |
 |-------|-------------------|
 | **read-only** | List, search, and read emails, threads, folders, events, contacts, meetings, teams |
-| **triage** | Everything in read-only plus all write operations: drafts, team comments, email actions (archive, move, pin, snooze, assign, etc.) and contact actions (block, accept, categorize, etc.) |
+| **triage** | Everything in read-only plus all write operations: drafts, team comments, email actions (archive, move, pin, snooze, assign, etc.), contact actions (block, accept, categorize, etc.) |
 
 Access levels are configured separately for each account and each shared inbox in Spark Desktop under Settings -> AI Agents. Shared inboxes can have a different access level than the parent account - for example, a personal account may have triage access while a shared inbox under the same team is read-only or disabled.
 
@@ -187,7 +187,7 @@ spark attachment 42 --stream > report.pdf    # write raw file bytes to stdout
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `<id>` | Yes | Attachment ID (pk) from the `thread` Attachments table. |
-| `--stream` | No | Write the raw file bytes to stdout instead of metadata text. Useful inside sandboxed agents that can read the CLI's stdout but not local filesystem paths. The CLI streams the file in 64 KB chunks, so there is no practical size limit. |
+| `--stream` | No | Write the raw file bytes to stdout instead of metadata text. Useful inside sandboxed agents that can read the CLI's stdout but not local filesystem paths. The CLI streams the file in 64 KB chunks, so there is no practical size limit. To go the other way - attach a file the app can't read - pipe it into `draft`/`comment` with `--attach-stream`. |
 
 Use `thread` to find attachment IDs (the `ID` column in the `Attachments:` table). The default text output is one `Key: value` per line, easy to parse from scripts.
 
@@ -206,6 +206,7 @@ spark draft --forward 5678 --to "manager@co.com" --body "FYI"
 spark draft --account "john@gmail.com" --to "alice@co.com" --subject "Hi" --body "..."
 spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach /path/to/report.pdf
 spark draft --to "alice@co.com" --subject "Files" --body "Two files" --attach /path/to/a.pdf --attach /path/to/b.xlsx
+cat report.pdf | spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach-stream report.pdf   # pipe a file the app can't read directly
 spark draft --to "client@co.com" --subject "Proposal" --body "..." --team "Engineering" --user alice@co.com --user bob@co.com
 spark draft --edit 1234 --team "Engineering" --user alice@co.com --allow-send
 spark draft --edit 1234 --user carol@co.com           # invite carol on an already-shared draft
@@ -229,17 +230,22 @@ spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --pl
 | `--reply-to` | No | Message ID to reply to. |
 | `--forward` | No | Message ID to forward. |
 | `--account` | No | Account email to send from. Accepts a regular mail account, an alias, or a shared inbox email. |
-| `--attach` | No | Absolute path to a file to attach. Repeat for multiple. |
+| `--attach` | No | Absolute path to a file to attach. Repeat for multiple. The Spark app must be able to read the path; in the sandboxed App Store build a path outside the app's container can't be read and is rejected with a clear error - pipe the file with `--attach-stream` instead. Max 25 MB per file. |
+| `--attach-stream` | No | Attach a single file whose bytes are read from stdin, shown to recipients as `<name>`. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; combine with `--attach` for paths the app can read. Max 25 MB. Example: `cat report.pdf \| spark draft --edit 123 --attach-stream report.pdf`. |
 | `--team` | No | Team name. Required when you belong to multiple teams. When editing a draft that's already shared, must match the team that owns the share. |
 | `--user` | No | Teammate email to share with. Repeat for multiple. On an already-shared draft this **adds** collaborators without removing existing ones - use `--remove-user` to remove someone. |
 | `--remove-user` | No | Teammate email to **remove** from an already-shared draft. Repeat for multiple. The shared draft, its comments, and the remaining collaborators are preserved (unlike `--unshare`, which tears the whole share down). Requires `--edit <shared-pk>`. Cannot remove yourself - use `--unshare` for that. Can be combined with `--user` in one command to swap collaborators; removals run before invites. |
 | `--allow-send` | No | Grant teammates permission to send the shared draft on your behalf. New share: defaults to off when omitted. Edit of a shared draft: leaves the current value alone when omitted. Mutually exclusive with `--no-allow-send`. |
 | `--no-allow-send` | No | Revoke teammates' permission to send the shared draft on your behalf. Useful when editing a shared draft whose allow-send is currently on. Mutually exclusive with `--allow-send`. |
-| `--unshare` | No | Revert an already-shared draft back to a personal draft. Requires `--edit` and is mutually exclusive with `--team` / `--user` / `--remove-user` / `--allow-send` / `--no-allow-send` **and** with content edits (`--to` / `--cc` / `--bcc` / `--subject` / `--body` / `--attach`) - issue the edit (or per-user removal) and the unshare as separate commands. |
+| `--unshare` | No | Revert an already-shared draft back to a personal draft. Requires `--edit` and is mutually exclusive with `--team` / `--user` / `--remove-user` / `--allow-send` / `--no-allow-send` **and** with content edits (`--to` / `--cc` / `--bcc` / `--subject` / `--body` / `--attach` / `--attach-stream`) - issue the edit (or per-user removal) and the unshare as separate commands. |
 | `--template` | No | Apply a saved template by ID or name. Combine with `--edit` to overlay onto an existing draft. |
 | `--placeholder` | When template has manual placeholders | Fill a manual template placeholder, format `"<name>=<value>"`. Repeat for each. Auto-fillable placeholders (recipient/self names) are not addressable here - control them via `--to` and `--account`. |
 
 Explicit flags always win over template fields. Use `template <id|name>` to discover the template's manual placeholders before calling `draft --template` - missing manual placeholders cause a hard error before any draft is created. Auto-fillable placeholders that fail to resolve (e.g. recipient name with multiple `--to`) leave a localized label in the body and surface in the response as a warning.
+
+On success the output includes the draft's `ID:` (use it with `--edit` and `action send`) and a `Link:` line with a Spark deep link (`https://sparkmailapp.com/dpl/bl?token=...`) that opens the draft directly in Spark.
+
+**Always give the user the deep link.** After creating or updating a draft, include the `Link:` URL in your response as a clickable markdown link (e.g. `[Open draft in Spark](https://sparkmailapp.com/dpl/bl?token=...)`) so the user can jump straight to the draft to review or send it. Do not tell the user to open Spark and hunt for the draft manually.
 
 Use `emails` to find message IDs for `--edit`, `--reply-to`, and `--forward`.
 Use `accounts` to find account emails for `--account` - both personal accounts and shared inboxes are listed there, and either can be used as the from address when the account has draft & comment access.
@@ -257,7 +263,7 @@ Content edits (`--to`, `--cc`, `--bcc`, `--subject`, `--body`, `--attach`) and s
 
 ### templates
 
-List Spark message templates - the saved drafts users can apply via `draft --template`. Templates round-trip from desktop, so anything saved on the user's Mac shows up here.
+List Spark message templates - the saved drafts users can apply via `draft --template`. Templates round-trip from desktop, so anything saved on the user's computer shows up here.
 
 ```bash
 spark templates                          # all personal + team templates
@@ -296,6 +302,7 @@ spark comment 1234 --body "Please review this" --team "Engineering"
 spark comment 1234 --body "FYI" --team "Engineering" --user alice@co.com --user bob@co.com
 spark comment 1234 --attach /path/to/screenshot.png
 spark comment 1234 --body "See attached" --attach /path/to/report.pdf --attach /path/to/data.csv
+cat screenshot.png | spark comment 1234 --attach-stream screenshot.png   # pipe a file the app can't read directly
 spark comment --edit 5678 --body "Updated comment text"
 ```
 
@@ -303,7 +310,8 @@ spark comment --edit 5678 --body "Updated comment text"
 |-----------|----------|-------------|
 | `<message-id>` | Yes (post) | Message ID of a message in the thread to comment on. |
 | `--body` | When no `--attach` | Comment text to post. Required when using `--edit`. |
-| `--attach` | When no `--body` | Absolute path to a file to attach. Repeat for multiple files. Each file is sent as a separate message. Cannot be used with `--edit`. |
+| `--attach` | When no `--body` | Absolute path to a file to attach. Repeat for multiple files. Each file is sent as a separate message. Cannot be used with `--edit`. The Spark app must be able to read the path; in the sandboxed App Store build a path outside the app's container can't be read and is rejected with a clear error - pipe the file with `--attach-stream` instead. Max 25 MB per file. |
+| `--attach-stream` | When no `--body` | Attach a single file whose bytes are read from stdin, shown as `<name>`, sent as its own comment message. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; cannot be used with `--edit`. Max 25 MB. Example: `cat shot.png \| spark comment 456 --attach-stream shot.png --team "Engineering"`. |
 | `--edit` | No | Message ID of an existing comment to edit. Requires `--body`. |
 | `--team` | When >1 team | Team name. Required when you belong to multiple teams. |
 | `--user` | When team >2 members | Teammate email to share with. Repeat for multiple. Only used when auto-sharing an unshared thread. For teams with 2 or fewer members, the whole team is shared with automatically. |
@@ -326,6 +334,7 @@ spark events --start 2026-03-16 --end 2026-03-20      # custom range
 Date formats: `yyyy-MM-dd`, `dd/MM/yyyy`, or `yyyy-MM-ddTHH:mm`.
 
 Run `accounts` to see available calendar accounts and calendar names.
+
 
 ### availability
 
@@ -427,6 +436,7 @@ Supported actions:
 - `assign` - Assign the email to a teammate (requires `--assignee`)
 - `delegationComplete` - Mark the delegation as complete
 - `delegationReopen` - Reopen a completed delegation
+
 
 Options:
 - `--date` - required for `snooze` and `changeReminder`, optional for `assign` as due date (formats: `yyyy-MM-dd`, `dd/MM/yyyy`, `yyyy-MM-ddTHH:mm`)
@@ -557,6 +567,7 @@ spark contact-action enableAutosummaryForContact newsletter@example.com # AI sum
 **Draft a reply:**
 1. `spark emails --filter "from:sender"` - find the email
 2. `spark draft --reply-to <ID> --body "Thanks for the update!"`
+3. Give the user the `Link:` from the output as a clickable markdown link so they can review the draft in Spark
 
 **Send an email from a saved template:**
 1. `spark templates` - list templates (or `spark templates --personal` / `--team "<name>"`)
@@ -642,6 +653,7 @@ Do not check on every session or before every command - this skill is the source
 - The `search` command is best for topic-based queries; `emails` is best for browsing/filtering by metadata
 - `thread` returns the full conversation - use it when you need the complete email text, not just metadata
 - Use `draft` to compose emails - it supports new drafts, replies, forwards, and editing existing drafts
+- After creating a draft, always share its `Link:` deep link with the user as a clickable markdown link instead of asking them to open Spark
 - Use `comment` to post team chat messages on threads - it auto-shares the thread if needed
 - Use `action` to perform email actions like pin, archive, snooze, move to folder, and more
 - Use `contact-action` to manage contacts - block, accept, change category, toggle auto-summary, and more

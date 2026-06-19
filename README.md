@@ -4,7 +4,7 @@ AI agent skills for the [Spark](https://sparkmailapp.com) CLI. Install individua
 
 ## Requirements
 
-- macOS with a recent build of [Spark Desktop](https://sparkmailapp.com), signed in to at least one account.
+- macOS or Windows with a recent build of [Spark Desktop](https://sparkmailapp.com), signed in to at least one account.
 - Spark CLI enabled: in Spark, go to **Settings → AI Agents → Spark CLI Setup** and follow the prompts.
 - Per-account access levels - `read-only` or `triage` (everything in read-only plus drafts, comments, and email/contact actions) - configured in **Settings → AI Agents -> Spark CLI Access**. Recipes and personas declare the level they need; running one against an account with insufficient access returns an error explaining how to upgrade.
 
@@ -46,6 +46,7 @@ Step-by-step workflows for a specific task. Composable - one recipe per job, run
 | [recipe-stakeholder-brief](skills/recipe-stakeholder-brief/SKILL.md) | Compile a relationship dossier from all interactions with a person |
 | [recipe-priority-tuning](skills/recipe-priority-tuning/SKILL.md) | Fine-tune Spark's priority category by adjusting contact-level settings |
 | [recipe-newsletter-cleanup](skills/recipe-newsletter-cleanup/SKILL.md) | Audit newsletter subscriptions - block, unsubscribe, or summarize |
+| [recipe-unsubscribe-audit](skills/recipe-unsubscribe-audit/SKILL.md) | Full unsubscribe audit - scan all pools, classify by engagement, flag phishing/duplicates, then unsubscribe |
 | [recipe-notification-hygiene](skills/recipe-notification-hygiene/SKILL.md) | Reclassify, group, and bulk-archive noisy notifications |
 | [recipe-label-organize](skills/recipe-label-organize/SKILL.md) | Organize emails with labels and folders - attach, detach, or move |
 

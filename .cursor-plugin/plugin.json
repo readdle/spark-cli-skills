@@ -1,8 +1,8 @@
 {
   "name": "spark",
   "displayName": "Spark",
-  "version": "1.2.1",
-  "description": "Give Cursor unified access to your email, calendar, contacts, and meeting notes through Spark on Mac. Works across Gmail, Outlook, iCloud, Exchange, and IMAP accounts. Cursor can search semantically, read threads and attachments, check availability, draft replies, and organize messages across every connected account.",
+  "version": "1.2.2",
+  "description": "Give Cursor unified access to your email, calendar, contacts, and meeting notes through Spark on macOS and Windows. Works across Gmail, Outlook, iCloud, Exchange, and IMAP accounts. Cursor can search semantically, read threads and attachments, check availability, draft replies, and organize messages across every connected account.",
   "author": {
     "name": "Spark Mail Limited"
   },
