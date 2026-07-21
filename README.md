@@ -6,7 +6,7 @@ AI agent skills for the [Spark](https://sparkmailapp.com) CLI. Install individua
 
 - macOS or Windows with a recent build of [Spark Desktop](https://sparkmailapp.com), signed in to at least one account.
 - Spark CLI enabled: in Spark, go to **Settings → AI Agents → Spark CLI Setup** and follow the prompts.
-- Per-account access levels - `read-only` or `triage` (everything in read-only plus drafts, comments, and email/contact actions) - configured in **Settings → AI Agents -> Spark CLI Access**. Recipes and personas declare the level they need; running one against an account with insufficient access returns an error explaining how to upgrade.
+- Per-account access levels - `read-only`, `triage` (everything in read-only plus drafts, comments, and email/contact actions), or `send` (everything in triage plus sending mail and calendar invitations) - configured in **Settings → AI Agents -> Spark CLI Access**. Recipes and personas declare the level they need; running one against an account with insufficient access returns an error explaining how to upgrade.
 
 ## Skills Index
 
