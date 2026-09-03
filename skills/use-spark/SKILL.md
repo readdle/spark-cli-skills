@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.3.0
+  version: 1.3.1
   requires:
     bins:
       - spark
@@ -34,7 +34,7 @@ spark <command> [options]
 | `search` | Hybrid keyword + semantic search with full bodies |
 | `thread` | Read full thread - headers, bodies, attachments |
 | `attachment` | Read a single email attachment by its ID (auto-downloads) |
-| `draft` | Create or edit an email draft (new, reply, forward, from template) |
+| `draft` | Create, edit, or delete an email draft (new, reply, forward, from template), or list account signatures |
 | `templates` | List saved message templates (personal and team) |
 | `template` | Show a single template by ID or name with its placeholders |
 | `comment` | Post a team comment on a thread |
@@ -50,7 +50,7 @@ spark <command> [options]
 
 ### accounts
 
-List all configured accounts with their calendars, teams, and shared inboxes. Each account and shared inbox shows its **access level** in parentheses, which controls what operations Spark can perform.
+List all configured accounts with their aliases, calendars, teams, and shared inboxes. Each account and shared inbox shows its **access level** in parentheses, which controls what operations Spark can perform.
 
 ```bash
 spark accounts
@@ -104,7 +104,9 @@ spark emails --new-senders                                     # show only new s
 | `email` | `user@example.com` | Account inbox shorthand |
 | `email:Folder` | `user@example.com:Archive` | Specific account folder |
 | `"Team Name"` | `"My Team"` | All shared threads in a team (quote if spaces) |
-| `shared@email:Folder` | `shared@co.com:Inbox` | Shared inbox folder |
+| `shared@email:Inbox` | `shared@co.com:Inbox` | Shared inbox open items (conversation view, matches Desktop) |
+| `shared@email:Archive` | `shared@co.com:Archive` | Shared inbox done/archived items (conversation view) |
+| `shared@email:Folder` | `shared@co.com:Label` | Other shared inbox folder / label |
 
 **Filter operators** (combinable, Gmail-style):
 
@@ -173,6 +175,8 @@ spark thread "https://sparkmailapp.com/dpl/bl?token=ABC..."  # by Spark deep lin
 
 The positional argument accepts either a numeric message ID (the `ID:` line) or a Spark deep link (the `Link:` line) printed by a previous run - `https://sparkmailapp.com/dpl/bl?token=...`, `readdle-spark://bl=...`, or `readdlespark://bl=...`.
 
+A `Reply-To:` line appears only when that header points somewhere other than `From` - mailing lists and website contact forms carry the real correspondent there. `draft --reply-to` already addresses the reply to it, so don't pass `--to` yourself.
+
 Each message's `Attachments:` block is a table with columns `ID`, `Name`, `Size`, `MIME Type`, and `Path`. The `ID` column is the attachment's stable pk - feed it to `attachment` to read the file contents (auto-downloads if necessary). The `Path` column shows the local file or `(not downloaded, ...)` for attachments not yet fetched.
 
 Use `emails` or `search` to find message IDs (the ID column), then `thread` to read the full conversation. Use `folders` to list valid label identifiers for `action attachLabel` / `detachLabel`.
@@ -204,12 +208,15 @@ spark draft --to "alice@example.com" --subject "Hello" --body "Hi Alice, ..."
 spark draft --to "alice@co.com" --to "bob@co.com" --cc "carol@co.com" --subject "Meeting" --body "..."
 spark draft --edit 1234 --subject "Updated subject" --body "Updated body"
 spark draft --reply-to 5678 --body "Thanks for the update!"
+spark draft --reply-all 5678 --body "Thanks everyone!"   # keeps the other recipients and the CCs
 spark draft --forward 5678 --to "manager@co.com" --body "FYI"
 spark draft --account "john@gmail.com" --to "alice@co.com" --subject "Hi" --body "..."
+spark draft signatures                                                                # the signature each account appends
 spark draft --to "alice@co.com" --subject "Quick note" --body "..." --no-signature   # send without a signature
 spark draft --edit 1234 --no-signature                                                # strip the signature from an existing draft
 spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach /path/to/report.pdf
 spark draft --to "alice@co.com" --subject "Files" --body "Two files" --attach /path/to/a.pdf --attach /path/to/b.xlsx
+spark draft --reply-to 5678 --body "Resending the file" --attach-id 42   # attach a file from the original email
 cat report.pdf | spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach-stream report.pdf   # pipe a file the app can't read directly
 spark draft --to "client@co.com" --subject "Proposal" --body "..." --team "Engineering" --user alice@co.com --user bob@co.com
 spark draft --edit 1234 --team "Engineering" --user alice@co.com --allow-send
@@ -219,6 +226,7 @@ spark draft --edit 1234 --no-allow-send               # revoke previously-grante
 spark draft --edit 1234 --remove-user alice@co.com    # kick alice from a shared draft (keeps share, comments, other collaborators)
 spark draft --edit 1234 --remove-user alice@co.com --user dave@co.com  # swap collaborators: remove alice, invite dave
 spark draft --edit 1234 --unshare
+spark draft --delete 1234                             # remove the draft for good (no Trash, no undo)
 spark draft --template "Cold outbound v3" --to "alice@co.com" --placeholder "Project name=Acme Q3" --placeholder "Deadline=Friday EOD"
 spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --placeholder "Deadline=Friday EOD"
 ```
@@ -231,32 +239,40 @@ spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --pl
 | `--subject` | No | Subject line. |
 | `--body` | Yes (new, no `--template`) | Body content in markdown. Required for new drafts unless a template provides one. |
 | `--edit` | No | Message ID of an existing draft to update. |
-| `--reply-to` | No | Message ID to reply to. |
+| `--reply-to` | No | Message ID to reply to. Addresses the sender alone (or the `Reply-To:` address when the message carries one). |
+| `--reply-all` | No | Message ID to reply to, keeping everyone else on the thread: the other `To:` recipients land in To, the original `Cc:` in CC, minus your own address. Mutually exclusive with `--reply-to`; `--to` / `--cc` override the lists it builds. |
 | `--forward` | No | Message ID to forward. |
+| `--delete` | No | Message ID of a draft to delete **permanently**. Must be the only option on the command. Drafts have no Trash, so the deletion cannot be undone. A scheduled draft and a draft shared with teammates are both refused - `action unschedule` or `draft --edit <pk> --unshare` first. |
 | `--account` | No | Account email to send from. Accepts a regular mail account, an alias, or a shared inbox email. |
 | `--attach` | No | Absolute path to a file to attach. Repeat for multiple. The Spark app must be able to read the path; in the sandboxed App Store build a path outside the app's container can't be read and is rejected with a clear error - pipe the file with `--attach-stream` instead. Max 25 MB per file. |
-| `--attach-stream` | No | Attach a single file whose bytes are read from stdin, shown to recipients as `<name>`. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; combine with `--attach` for paths the app can read. Max 25 MB. Example: `cat report.pdf \| spark draft --edit 123 --attach-stream report.pdf`. |
+| `--attach-id` | No | ID of an attachment on an existing email to copy onto this draft, from the Attachments table of `thread <message-id>`. Repeat for multiple. Use this to re-send a file the user received - replies don't inherit attachments (only `--forward` does). |
+| `--attach-stream` | No | Attach a single file whose bytes are read from stdin, shown to recipients as `<name>`. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; combine with `--attach` for paths the app can read. Max 25 MB. Example: `cat report.pdf \| spark draft --edit 123 --attach-stream report.pdf`. Needs a real stdin, so it only works when you run the `spark` binary yourself - otherwise use `--attach-id` / `--attach`. |
 | `--team` | No | Team name. Required when you belong to multiple teams. When editing a draft that's already shared, must match the team that owns the share. |
 | `--user` | No | Teammate email to share with. Repeat for multiple. On an already-shared draft this **adds** collaborators without removing existing ones - use `--remove-user` to remove someone. |
 | `--remove-user` | No | Teammate email to **remove** from an already-shared draft. Repeat for multiple. The shared draft, its comments, and the remaining collaborators are preserved (unlike `--unshare`, which tears the whole share down). Requires `--edit <shared-pk>`. Cannot remove yourself - use `--unshare` for that. Can be combined with `--user` in one command to swap collaborators; removals run before invites. |
 | `--allow-send` | No | Grant teammates permission to send the shared draft on your behalf. New share: defaults to off when omitted. Edit of a shared draft: leaves the current value alone when omitted. Mutually exclusive with `--no-allow-send`. |
 | `--no-allow-send` | No | Revoke teammates' permission to send the shared draft on your behalf. Useful when editing a shared draft whose allow-send is currently on. Mutually exclusive with `--allow-send`. |
-| `--unshare` | No | Revert an already-shared draft back to a personal draft. Requires `--edit` and is mutually exclusive with `--team` / `--user` / `--remove-user` / `--allow-send` / `--no-allow-send` **and** with content edits (`--to` / `--cc` / `--bcc` / `--subject` / `--body` / `--attach` / `--attach-stream`) - issue the edit (or per-user removal) and the unshare as separate commands. |
+| `--unshare` | No | Revert an already-shared draft back to a personal draft. Requires `--edit` and is mutually exclusive with `--team` / `--user` / `--remove-user` / `--allow-send` / `--no-allow-send` **and** with content edits (`--to` / `--cc` / `--bcc` / `--subject` / `--body` / `--attach` / `--attach-id` / `--attach-stream`) - issue the edit (or per-user removal) and the unshare as separate commands. |
 | `--template` | No | Apply a saved template by ID or name. Combine with `--edit` to overlay onto an existing draft. |
 | `--placeholder` | When template has manual placeholders | Fill a manual template placeholder, format `"<name>=<value>"`. Repeat for each. Auto-fillable placeholders (recipient/self names) are not addressable here - control them via `--to` and `--account`. |
 | `--no-signature` | No | Send without a signature. Suppresses the account's per-mailbox default signature for this draft. On `--edit` it strips a signature already on the draft (the body and quoted thread are kept). Omit the flag to keep using the account default. |
+| `signatures` | No | Positional, not a flag: prints every mailbox you can draft from with the signature it appends. Must be the only argument. |
 
 Explicit flags always win over template fields. Use `template <id|name>` to discover the template's manual placeholders before calling `draft --template` - missing manual placeholders cause a hard error before any draft is created. Auto-fillable placeholders that fail to resolve (e.g. recipient name with multiple `--to`) leave a localized label in the body and surface in the response as a warning.
 
-On success the output includes the draft's `ID:` (use it with `--edit` and `action send`) and a `Link:` line with a Spark deep link (`https://sparkmailapp.com/dpl/bl?token=...`) that opens the draft directly in Spark.
+**The signature is added for you - never write your own sign-off.** Spark appends the mailbox's default signature to the body of every draft. `spark draft signatures` prints what each mailbox you can draft from appends.
+
+When the user asks for a closing that differs from their signature, pass `--no-signature` and write the whole closing yourself.
+
+On success the output includes the draft's `ID:` (use it with `--edit` and `action send`) and a `Link:` line with a Spark deep link (`https://sparkmailapp.com/dpl/bl?token=...`) that opens the draft directly in Spark. It also echoes the composed body under `Body:` - the whole message as the recipient will read it, signature included and quoted thread left out. Read it back to confirm the draft says what you meant, and to catch a sign-off of your own standing next to the account's.
 
 **Always give the user the deep link.** After creating or updating a draft, include the `Link:` URL in your response as a clickable markdown link (e.g. `[Open draft in Spark](https://sparkmailapp.com/dpl/bl?token=...)`) so the user can jump straight to the draft to review or send it. Do not tell the user to open Spark and hunt for the draft manually.
 
-Use `emails` to find message IDs for `--edit`, `--reply-to`, and `--forward`.
-Use `accounts` to find account emails for `--account` - both personal accounts and shared inboxes are listed there, and either can be used as the from address when the account has draft & comment access.
+Use `emails` to find message IDs for `--edit`, `--reply-to`, `--reply-all`, and `--forward`.
+Use `accounts` to find account emails for `--account` - personal accounts, their `Alias:` entries, and shared inboxes are all listed there, and any of them can be used as the from address when the account has draft & comment access.
 Use `teams` to find team names for `--team` and team member emails for `--user`.
 
-**Threading is critical.** Whenever a new message belongs to an existing conversation, you **must** pass `--reply-to` with the **last message in that thread**. This is what attaches the draft to the conversation (correct In-Reply-To / References headers, same thread in the recipient's mailbox). Without `--reply-to` the draft starts a brand new thread, which is almost always wrong when the user asked you to "reply", "respond", "follow up", "answer", or "ping" anyone in the context of an existing conversation. Use `thread <id>` to inspect the conversation and pick the most recent message's ID as `--reply-to`.
+**Threading is critical.** Whenever a new message belongs to an existing conversation, you **must** pass `--reply-to` with the **last message in that thread**. This is what attaches the draft to the conversation (correct In-Reply-To / References headers, same thread in the recipient's mailbox). Without `--reply-to` the draft starts a brand new thread, which is almost always wrong when the user asked you to "reply", "respond", "follow up", "answer", or "ping" anyone in the context of an existing conversation. Use `thread <id>` to inspect the conversation and pick the most recent message's ID as `--reply-to`. On a thread with several participants, use `--reply-all` unless the user wants a private answer to the sender.
 
 **Follow-ups (no response yet).** When the user asks to follow up with someone you already emailed and they haven't replied yet (e.g. "send Alice a nudge - she never responded to my last email", "bump the proposal thread"), the most recent message in that thread is your own outgoing one. Use that message's ID as `--reply-to` - the follow-up stays attached to the original outgoing message so the recipient sees it as a bump on the existing conversation rather than a new cold email.
 
@@ -265,6 +281,8 @@ To add collaborators or change the allow-send setting on an existing shared draf
 To toggle allow-send off, pass `--no-allow-send`.
 To remove a specific collaborator without tearing the share down, pass `--remove-user <email>`; the shared draft, its comments, and the remaining collaborators stay intact. Combine `--user` and `--remove-user` in one command to swap collaborators in a single operation - removals run before invites.
 Content edits (`--to`, `--cc`, `--bcc`, `--subject`, `--body`, `--attach`) and sharing updates (`--team`, `--user`, `--remove-user`, `--allow-send`, `--no-allow-send`) must be issued as separate `draft` commands.
+
+**Deleting a draft is final.** `--delete <pk>` removes the draft outright - unlike a received email there is no Trash to recover it from, and neither `history --undo` nor Spark's own undo can bring it back. Only delete a draft the user asked you to discard, and say so plainly in your response rather than implying it can be restored. To throw away just the *text* of a draft while keeping the draft itself, edit it (`draft --edit <pk> --body "..."`) instead.
 
 ### templates
 
@@ -316,7 +334,7 @@ spark comment --edit 5678 --body "Updated comment text"
 | `<message-id>` | Yes (post) | Message ID of a message in the thread to comment on. |
 | `--body` | When no `--attach` | Comment text to post. Required when using `--edit`. |
 | `--attach` | When no `--body` | Absolute path to a file to attach. Repeat for multiple files. Each file is sent as a separate message. Cannot be used with `--edit`. The Spark app must be able to read the path; in the sandboxed App Store build a path outside the app's container can't be read and is rejected with a clear error - pipe the file with `--attach-stream` instead. Max 25 MB per file. |
-| `--attach-stream` | When no `--body` | Attach a single file whose bytes are read from stdin, shown as `<name>`, sent as its own comment message. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; cannot be used with `--edit`. Max 25 MB. Example: `cat shot.png \| spark comment 456 --attach-stream shot.png --team "Engineering"`. |
+| `--attach-stream` | When no `--body` | Attach a single file whose bytes are read from stdin, shown as `<name>`, sent as its own comment message. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; cannot be used with `--edit`. Max 25 MB. Example: `cat shot.png \| spark comment 456 --attach-stream shot.png --team "Engineering"`. Needs a real stdin, so it only works when you run the `spark` binary yourself - otherwise use `--attach`. |
 | `--edit` | No | Message ID of an existing comment to edit. Requires `--body`. |
 | `--team` | When >1 team | Team name. Required when you belong to multiple teams. |
 | `--user` | When team >2 members | Teammate email to share with. Repeat for multiple. Only used when auto-sharing an unshared thread. For teams with 2 or fewer members, the whole team is shared with automatically. |
@@ -775,6 +793,8 @@ Do not check on every session or before every command - this skill is the source
 - `thread` returns the full conversation - use it when you need the complete email text, not just metadata
 - Use `draft` to compose emails - it supports new drafts, replies, forwards, and editing existing drafts
 - After creating a draft, always share its `Link:` deep link with the user as a clickable markdown link instead of asking them to open Spark
+- `draft --delete <pk>` discards a draft permanently - there is no Trash and no undo, so use it only when the user asked for it
+- Never end a draft body with a sign-off: Spark appends the account's signature itself (`draft signatures` shows it)
 - Use `comment` to post team chat messages on threads - it auto-shares the thread if needed
 - Use `action` to perform email actions like pin, archive, snooze, move to folder, and more
 - Use `contact-action` to manage contacts - block, accept, change category, toggle auto-summary, and more
