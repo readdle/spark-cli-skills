@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.3.1
+  version: 1.4.0
   requires:
     bins:
       - spark
@@ -23,6 +23,8 @@ spark <command> [options]
 ```
 
 **Environment:** `spark` is a thin client that talks over IPC to the user's running Spark Desktop app - it does not ship its own mailbox, network stack, or credentials. Run it directly on the user's computer against the live Spark Desktop process. Do not try to execute it inside a sandbox, container, CI runner, or any environment isolated from the user's desktop session - it will fail to connect. If Spark Desktop is not running, ask the user to launch it instead of retrying.
+
+**JSON output:** add `--json` to any command to get its result as JSON instead of text - the same data, with full (untruncated) values, snake_case keys, and ISO 8601 dates. A failure prints `{"error": {"message": "…"}}` on stdout and exits non-zero. Prefer the default text when you only need to read the result; use `--json` when you need to process it (e.g. `spark emails --json | jq '.emails[].id'`). Fields are only ever added, never renamed or removed.
 
 ## Commands
 
@@ -41,7 +43,8 @@ spark <command> [options]
 | `events` | List calendar events for a time range |
 | `event` | Create, update, delete, or RSVP to a calendar event, including managing attendees / invitations |
 | `availability` | Find free time slots, optionally with attendees |
-| `contacts` | Search contacts by name or email |
+| `contacts` | Search contacts by name or email, or list the most-used ones |
+| `contact` | Show one contact's details and settings |
 | `team` | Show team info, members, shared inboxes, assignments |
 | `meetings` | List meeting transcripts |
 | `meeting` | Read a single meeting transcript |
@@ -439,12 +442,31 @@ Free slots are within working hours (08:00-20:00), skip weekends, and ignore eve
 
 ### contacts
 
-Search contacts by name or email. Strict match first, then fuzzy fallback.
+Search contacts by name or email. Strict match first, then fuzzy fallback. Without a query, lists the contacts the user writes to most, most-used first. `--limit` caps the list (1-1000, default 25).
 
 ```bash
 spark contacts "john"
 spark contacts "example.com"
+spark contacts --limit 500 --json   # most-used contacts; "query" is null, "match" is "top"
 ```
+
+### contact
+
+Show one contact's details: name, other addresses, and each setting `contact-action` changes. Check a sender's state before changing it - e.g. whether they are already Priority or blocked. An unknown address is an error.
+
+```bash
+spark contact bob@example.com
+spark contact bob@example.com --json
+```
+
+| Field | Changed by |
+|-------|-----------|
+| `category` (`personal` / `notification` / `newsletter`) | `changeCategory*` |
+| `is_priority` | `markContactAsPrimary` / `unmarkContactAsPrimary` |
+| `notifications` | `markContactAsImportant` / `unmarkContactAsImportant` |
+| `blocked` / `accepted` (GateKeeper; neither for a new sender) | `blockContact` / `acceptContact` |
+| `grouped`, `grouped_in_inbox` | `groupEmailsFromContact[AndShowInInbox]` / `ungroupEmailsFromContact` |
+| `auto_summary` | `enableAutosummaryForContact` / `disableAutosummaryForContact` |
 
 ### team
 
