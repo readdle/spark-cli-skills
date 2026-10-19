@@ -1,0 +1,16 @@
+{
+  "name": "spark-mail",
+  "owner": {
+    "name": "Spark Mail Limited"
+  },
+  "metadata": {
+    "description": "Spark Mail plugins for Cursor."
+  },
+  "plugins": [
+    {
+      "name": "spark",
+      "source": "./",
+      "description": "Spark email, calendar, meetings, and contacts for Cursor, with recipes and personas."
+    }
+  ]
+}
