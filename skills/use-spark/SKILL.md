@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.4.0
+  version: 1.4.1
   requires:
     bins:
       - spark
@@ -219,6 +219,7 @@ spark draft --to "alice@co.com" --subject "Quick note" --body "..." --no-signatu
 spark draft --edit 1234 --no-signature                                                # strip the signature from an existing draft
 spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach /path/to/report.pdf
 spark draft --to "alice@co.com" --subject "Files" --body "Two files" --attach /path/to/a.pdf --attach /path/to/b.xlsx
+spark draft --to "alice@co.com" --subject "Q3" --body $'Revenue is up:\n\n![Q3 revenue](chart.png)' --attach /path/to/chart.png   # show an attached image in the text
 spark draft --reply-to 5678 --body "Resending the file" --attach-id 42   # attach a file from the original email
 cat report.pdf | spark draft --to "alice@co.com" --subject "Report" --body "See attached" --attach-stream report.pdf   # pipe a file the app can't read directly
 spark draft --to "client@co.com" --subject "Proposal" --body "..." --team "Engineering" --user alice@co.com --user bob@co.com
@@ -240,7 +241,7 @@ spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --pl
 | `--cc` | No | CC address. Repeat for multiple. |
 | `--bcc` | No | BCC address. Repeat for multiple. |
 | `--subject` | No | Subject line. |
-| `--body` | Yes (new, no `--template`) | Body content in markdown. Required for new drafts unless a template provides one. |
+| `--body` | Yes (new, no `--template`) | Body content in markdown. Required for new drafts unless a template provides one. `![alt](file name)` shows an attached image in the text - see **Images in the body** below. |
 | `--edit` | No | Message ID of an existing draft to update. |
 | `--reply-to` | No | Message ID to reply to. Addresses the sender alone (or the `Reply-To:` address when the message carries one). |
 | `--reply-all` | No | Message ID to reply to, keeping everyone else on the thread: the other `To:` recipients land in To, the original `Cc:` in CC, minus your own address. Mutually exclusive with `--reply-to`; `--to` / `--cc` override the lists it builds. |
@@ -262,6 +263,8 @@ spark draft --template 124 --edit 9821 --placeholder "Project name=Acme Q3" --pl
 | `signatures` | No | Positional, not a flag: prints every mailbox you can draft from with the signature it appends. Must be the only argument. |
 
 Explicit flags always win over template fields. Use `template <id|name>` to discover the template's manual placeholders before calling `draft --template` - missing manual placeholders cause a hard error before any draft is created. Auto-fillable placeholders that fail to resolve (e.g. recipient name with multiple `--to`) leave a localized label in the body and surface in the response as a warning.
+
+**Images in the body.** To put an image in the text instead of the attachment list, attach it and show it with markdown image syntax by its file name: `--attach /path/to/chart.png --body "![Q3 revenue](chart.png)"`. The file can come from `--attach`, `--attach-stream` or `--attach-id`, or already be on the draft. An `https://` image address is left as it is. A local image that matches no attached file, or a file that isn't an image, is an error, so a draft never goes out with a broken image. On `--edit` with `--body`, the new body decides which images stay: show an image already on the draft by its name (as `thread <draft-id>` lists it) to keep it, leave it out to remove it.
 
 **The signature is added for you - never write your own sign-off.** Spark appends the mailbox's default signature to the body of every draft. `spark draft signatures` prints what each mailbox you can draft from appends.
 
@@ -355,11 +358,14 @@ spark events --week
 spark events --week --in user@example.com             # specific account
 spark events --week --in user@example.com:Work        # specific calendar
 spark events --start 2026-03-16 --end 2026-03-20      # custom range
+spark events --week --include-hidden                  # hidden calendars too
 ```
 
 Date formats: `yyyy-MM-dd`, `dd/MM/yyyy`, or `yyyy-MM-ddTHH:mm`.
 
 Run `accounts` to see available calendar accounts and calendar names.
+
+**Hidden calendars:** `accounts` marks a calendar `(hidden)` when the user switched it off in Spark's calendar view. `events` leaves hidden calendars out, the same way Spark's calendar view does. Pass `--include-hidden` to add them, or name one with `--in user@example.com:Name` to list just that calendar. If the user expects events that aren't listed, check `accounts` for hidden calendars before concluding the calendar is empty or unsupported.
 
 ### event
 
@@ -397,7 +403,7 @@ spark event rsvp 44268 maybe        # invitation email message ID
 | `--alerts` | No | Comma-separated alert offsets (`Ns` for N seconds before, e.g. `300s,600s`) or absolute dates. |
 | `--location` | No | Event location text. |
 | `--video-conference` | No | Attach a video conference (value required). `auto` auto-picks the account's type (recently used, else default); `meet`, `zoom`, or `teams` selects a specific one and errors if the account doesn't support it. |
-| `--calendar` | No | Target calendar for `create`. Format: `email@domain.com` (account's default calendar) or `email@domain.com:Name` (specific named calendar). |
+| `--calendar` | No | Target calendar for `create`. Format: `email@domain.com` (account's default calendar) or `email@domain.com:Name` (specific named calendar). Hidden calendars work too, and saving an event in one switches it back on in Spark's calendar view. |
 | `--add` | No | Attendee email address(es) to invite (create / update only). Repeat the flag or pass a comma-separated list. New attendees receive an iTIP REQUEST (invitation). |
 | `--remove` | No | Attendee email address(es) to remove (update only). Repeat the flag or pass a comma-separated list. Removed attendees receive an iTIP CANCEL. The organizer cannot be removed. |
 
