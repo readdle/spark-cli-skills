@@ -325,8 +325,11 @@ If a name matches more than one template, you'll get an error listing the matchi
 
 Post a team comment (chat message) on a thread. If the thread is not yet shared, it will be shared automatically. Supports text comments, file attachments, or both. Use `--edit` to update an existing comment.
 
+To mention (tag) a teammate, write `@` followed by their email in `--body`, e.g. `@alice@co.com`. It becomes a real mention: the teammate is notified and added to the conversation, and the comment shows `@Full Name`. Get emails from `spark team "<Team Name>"`. An `@email` that isn't an active member of the team is rejected with the member list; `@Name` without an email is posted as plain text and notifies nobody.
+
 ```bash
 spark comment 1234 --body "Looks good, let's proceed."
+spark comment 1234 --body "@alice@co.com can you take this one?"
 spark comment 1234 --body "Please review this" --team "Engineering"
 spark comment 1234 --body "FYI" --team "Engineering" --user alice@co.com --user bob@co.com
 spark comment 1234 --attach /path/to/screenshot.png
@@ -338,12 +341,12 @@ spark comment --edit 5678 --body "Updated comment text"
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `<message-id>` | Yes (post) | Message ID of a message in the thread to comment on. |
-| `--body` | When no `--attach` | Comment text to post. Required when using `--edit`. |
+| `--body` | When no `--attach` | Comment text to post. `@<email>` mentions a teammate. Required when using `--edit`. |
 | `--attach` | When no `--body` | Absolute path to a file to attach. Repeat for multiple files. Each file is sent as a separate message. Cannot be used with `--edit`. The Spark app must be able to read the path; in the sandboxed App Store build a path outside the app's container can't be read and is rejected with a clear error - pipe the file with `--attach-stream` instead. Max 25 MB per file. |
 | `--attach-stream` | When no `--body` | Attach a single file whose bytes are read from stdin, shown as `<name>`, sent as its own comment message. Use this when the file is outside the app's sandbox (the App Store build can't read arbitrary paths) - it's the inbound twin of `attachment --stream`. One streamed file per command; cannot be used with `--edit`. Max 25 MB. Example: `cat shot.png \| spark comment 456 --attach-stream shot.png --team "Engineering"`. Needs a real stdin, so it only works when you run the `spark` binary yourself - otherwise use `--attach`. |
 | `--edit` | No | Message ID of an existing comment to edit. Requires `--body`. |
 | `--team` | When >1 team | Team name. Required when you belong to multiple teams. |
-| `--user` | When team >2 members | Teammate email to share with. Repeat for multiple. Only used when auto-sharing an unshared thread. For teams with 2 or fewer members, the whole team is shared with automatically. |
+| `--user` | When team >2 members | Teammate email to share with. Repeat for multiple. Only used when auto-sharing an unshared thread; it doesn't mention anyone (use `@<email>` in `--body`). For teams with 2 or fewer members, the whole team is shared with automatically. |
 
 Use `emails` to find message IDs. Use `thread` to see comment IDs in a conversation. Use `team` to list teams and their members.
 
