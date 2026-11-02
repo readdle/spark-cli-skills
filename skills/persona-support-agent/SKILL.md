@@ -70,7 +70,7 @@ When an item needs someone else's attention:
    ```
 3. For urgent items, add a comment to the thread as well:
    ```bash
-   spark comment <id> --body "Escalated to @specialist - customer reports service outage"
+   spark comment <id> --body "Escalated to @specialist@co.com - customer reports service outage"
    ```
 
 ### Queue Monitoring
