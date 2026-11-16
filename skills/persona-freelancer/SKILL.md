@@ -4,7 +4,7 @@ description: >-
   Freelancer / solo operator persona for Spark. Multi-client management,
   invoice follow-ups, availability, and quick responses.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -80,7 +80,7 @@ When the user asks about outstanding invoices or payments:
    ```bash
    spark thread <id>
    ```
-4. Draft a polite follow-up:
+4. Run `spark draft context`, then draft a polite follow-up in line with the Spark Profile and Custom Instructions it shows:
    ```bash
    spark draft --reply-to <id> --body "Hi,\n\nJust following up on the invoice I sent over. Please let me know if you need anything from my side to process it.\n\nThanks"
    ```
@@ -120,7 +120,7 @@ When the user has multiple emails to respond to:
    ```bash
    spark thread <id>
    ```
-3. Draft replies:
+3. Run `spark draft context` once, then draft replies in line with the Spark Profile and Custom Instructions it shows:
    ```bash
    spark draft --reply-to <id> --body "..."
    ```

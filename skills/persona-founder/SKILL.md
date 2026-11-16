@@ -4,7 +4,7 @@ description: >-
   Founder / CEO persona for Spark. High-volume triage, aggressive delegation,
   cross-team oversight, and selective engagement.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -35,7 +35,7 @@ When the user wants to process their inbox quickly:
    spark thread <id>
    ```
 3. Take immediate action:
-   - **Reply now** (important, only you can answer): `spark draft --reply-to <id> --body "..."`
+   - **Reply now** (important, only you can answer): `spark draft --reply-to <id> --body "..."` - run `spark draft context` first and write in line with what it shows
    - **Delegate** (someone else should handle): `spark action assign <id> --assignee teammate@co.com --comment "Please handle"`
    - **Snooze** (not now, but soon): `spark action snooze <id> --date 2026-04-12`
    - **Archive** (informational, no action needed): `spark action archive <id>`
@@ -102,7 +102,7 @@ When preparing for investor or board communications:
    ```bash
    spark emails --filter "from:investor@fund.com newer_than:30d"
    ```
-3. Draft the update:
+3. Run `spark draft context`, then draft the update in line with the Spark Profile and Custom Instructions it shows:
    ```bash
    spark draft --to "investor@fund.com" --subject "Monthly Update" --body "..."
    ```

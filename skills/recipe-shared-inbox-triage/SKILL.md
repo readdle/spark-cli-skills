@@ -3,7 +3,7 @@ name: spark-recipe-shared-inbox-triage
 description: >-
   Process open items in shared inboxes: review, assign, respond, or mark done.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -51,7 +51,7 @@ Read the full conversation to understand the request.
 spark action assign <id> --assignee specialist@co.com --comment "Billing question, your area"
 ```
 
-**Respond** directly if you can:
+**Respond** directly if you can - run `spark draft context` first and write in line with the Spark Profile and Custom Instructions it shows:
 ```bash
 spark draft --reply-to <id> --body "..."
 ```

@@ -4,7 +4,7 @@ description: >-
   Review and finalize multiple pending drafts in a batch session: read
   context, edit, or discard.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -43,7 +43,7 @@ Check if the conversation has moved on since the draft was created - someone els
 
 For each draft, present the options to the user:
 
-**Edit** - the draft needs changes before sending:
+**Edit** - the draft needs changes before sending. Run `spark draft context` first and rewrite the body in line with the Spark Profile and Custom Instructions it shows:
 
 ```bash
 spark draft --edit <id> --body "Updated content..."

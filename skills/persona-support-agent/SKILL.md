@@ -4,7 +4,7 @@ description: >-
   Support agent persona for Spark. Shared inbox processing, assignment,
   templated responses, and escalation via delegation.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -46,7 +46,7 @@ When drafting a response:
    ```bash
    spark thread <id>
    ```
-2. Draft the reply:
+2. Run `spark draft context`, then draft the reply in line with the Spark Profile and Custom Instructions it shows:
    ```bash
    spark draft --reply-to <id> --body "..."
    ```
