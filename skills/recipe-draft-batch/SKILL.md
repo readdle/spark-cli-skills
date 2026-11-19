@@ -52,11 +52,14 @@ spark draft --edit <id> --subject "Updated subject"
 
 **Keep as-is** - the draft is ready to send. Note it for the user.
 
-**Discard** - the draft is no longer needed. Move to trash:
+**Discard** - the draft is no longer needed. Deleting a draft is permanent (drafts have no Trash), so confirm with the user first:
 
 ```bash
-spark action moveToTrash <id>
+spark draft --delete <id>                # one draft
+spark draft --delete <id> <id> <id>      # several at once
 ```
+
+With several IDs, the valid drafts are deleted even if others are refused; read the output for any that were not.
 
 ### Step 4: Report
 
