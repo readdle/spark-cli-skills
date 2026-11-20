@@ -4,7 +4,7 @@ description: >-
   Review and finalize multiple pending drafts in a batch session: read
   context, edit, or discard.
 metadata:
-  version: 1.0.1
+  version: 1.0.2
   requires:
     skills:
       - use-spark
@@ -52,11 +52,14 @@ spark draft --edit <id> --subject "Updated subject"
 
 **Keep as-is** - the draft is ready to send. Note it for the user.
 
-**Discard** - the draft is no longer needed. Move to trash:
+**Discard** - the draft is no longer needed. Deleting a draft is permanent (drafts have no Trash), so confirm with the user first:
 
 ```bash
-spark action moveToTrash <id>
+spark draft --delete <id>                # one draft
+spark draft --delete <id> <id> <id>      # several at once
 ```
+
+With several IDs, the valid drafts are deleted even if others are refused; read the output for any that were not.
 
 ### Step 4: Report
 
@@ -70,4 +73,3 @@ Summarize: "Reviewed N drafts. M edited, K ready to send, L discarded."
 - `draft --edit` updates the draft in place - it doesn't create a new one.
 - For drafts that are replies (`--reply-to`), read the original thread to verify the reply still makes sense.
 - Run this recipe weekly to prevent draft accumulation.
-- Discarding via `moveToTrash` is reversible - the draft can be recovered from trash if needed.
