@@ -4,7 +4,7 @@ description: >-
   Review and finalize multiple pending drafts in a batch session: read
   context, edit, or discard.
 metadata:
-  version: 1.0.1
+  version: 1.0.2
   requires:
     skills:
       - use-spark
@@ -73,4 +73,3 @@ Summarize: "Reviewed N drafts. M edited, K ready to send, L discarded."
 - `draft --edit` updates the draft in place - it doesn't create a new one.
 - For drafts that are replies (`--reply-to`), read the original thread to verify the reply still makes sense.
 - Run this recipe weekly to prevent draft accumulation.
-- Discarding via `moveToTrash` is reversible - the draft can be recovered from trash if needed.

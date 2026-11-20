@@ -4,7 +4,7 @@ description: >-
   Build a comprehensive dossier on a person by pulling all meetings they
   attended and email threads with them into a single relationship brief.
 metadata:
-  version: 1.0.0
+  version: 1.0.1
   requires:
     skills:
       - use-spark
@@ -32,13 +32,13 @@ Note their email address(es) and any other details.
 ### Step 2: Pull recent email threads
 
 ```bash
-spark emails --filter "from:person@co.com newer_than:30d"
+spark search --filter "from:person@co.com newer_than:30d"
 ```
 
 Also check emails sent to them:
 
 ```bash
-spark emails --filter "to:person@co.com newer_than:30d"
+spark search --filter "to:person@co.com newer_than:30d"
 ```
 
 For the most important threads, read the full conversation:
