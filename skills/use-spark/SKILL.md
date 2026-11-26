@@ -50,6 +50,7 @@ spark <command> [options]
 | `meeting` | Read a single meeting transcript |
 | `action` | Perform actions on emails (archive, pin, snooze, assign, etc.) |
 | `contact-action` | Perform actions on contacts (block, accept, categorize, etc.) |
+| `history` | Review what `spark` has done and how each command ended, and undo an entry |
 
 ### accounts
 
@@ -332,7 +333,7 @@ To toggle allow-send off, pass `--no-allow-send`.
 To remove a specific collaborator without tearing the share down, pass `--remove-user <email>`; the shared draft, its comments, and the remaining collaborators stay intact. Combine `--user` and `--remove-user` in one command to swap collaborators in a single operation - removals run before invites.
 Content edits (`--to`, `--cc`, `--bcc`, `--subject`, `--body`, `--attach`) and sharing updates (`--team`, `--user`, `--remove-user`, `--allow-send`, `--no-allow-send`) must be issued as separate `draft` commands.
 
-**Deleting a draft is final.** `--delete <pk>` removes the draft outright - unlike a received email there is no Trash to recover it from, and neither `history --undo` nor Spark's own undo can bring it back. Only delete a draft the user asked you to discard, and say so plainly in your response rather than implying it can be restored. To throw away just the *text* of a draft while keeping the draft itself, edit it (`draft --edit <pk> --body "..."`) instead. `action moveToTrash` does not work on a draft.
+**Deleting a draft is final.** `--delete <pk>` removes the draft outright - unlike a received email there is no Trash to recover it from, and neither `history undo` nor Spark's own undo can bring it back. Only delete a draft the user asked you to discard, and say so plainly in your response rather than implying it can be restored. To throw away just the *text* of a draft while keeping the draft itself, edit it (`draft --edit <pk> --body "..."`) instead. `action moveToTrash` does not work on a draft.
 
 **Deleting several drafts.** `--delete 1234 2345 3456` checks each ID and deletes every valid draft in one go, even when others are refused. If any ID was not deleted (scheduled, shared, not a draft, not found), the command exits non-zero; its first line names those IDs, and the rest lists what was deleted and why the others were not. `--json` gives one entry per ID with `status` `deleted`, `refused` or `not_found`.
 
@@ -340,7 +341,7 @@ Content edits (`--to`, `--cc`, `--bcc`, `--subject`, `--body`, `--attach`) and s
 
 `--send` sends an existing draft (created with `spark draft` or in Spark Desktop) through the owning account's outbound mail pipeline. Same validation as the desktop composer: the draft must live on an account whose access level is **send** (Settings -> AI Agents), have at least one recipient, a non-empty subject, all attachments uploaded, and no unresolved manual template placeholders.
 
-**Sending waits for the user.** So the user can stop it, every `--send` is held for 60 seconds before it runs: the command answers right away with `Queued: …` and nothing has been sent yet. The user can undo it in Spark Desktop during that time. Check the outcome afterwards with `spark history` - an entry with status `error` did not go out. The other verbs below run at once.
+**Sending waits for the user.** So the user can stop it, every `--send` is held for 60 seconds before it runs: the command answers right away with `Queued: …` and nothing has been sent yet. The user can undo it in Spark Desktop during that time. Check the outcome afterwards with `spark history` (see [history](#history)): `ok` means it went out, `error` that it failed, and `blocked` that the user stopped it. The entry appears once the 60 seconds are over; `spark emails Outbox` is a second check. The other verbs below run at once.
 
 ```bash
 spark draft --send 1234
@@ -729,6 +730,42 @@ spark contact-action enableAutosummaryForContact newsletter@example.com
 
 Use the `contacts` command to look up email addresses.
 
+### history
+
+Every `spark` command - yours, the user's, and other agents' - is recorded on the user's computer: when it ran, the items it touched, and how it ended. Use `history` to check what a command did, above all the outcome of a `draft --send`, which answers `Queued: …` before anything is sent. Nothing is uploaded, and entries older than 30 days are pruned.
+
+```bash
+spark history                                  # recent changes, newest first
+spark history --status error                   # only commands that failed
+spark history --access send                    # only sends
+spark history --access readOnly                # include reads as well
+spark history --from 2026-04-10 --to 2026-04-12
+spark history --details                        # who ran each entry, every item, its arguments and detail
+spark history undo 42                          # revert entry 42
+```
+
+Output:
+```
+  ID  Time                 Command         Status  Items
+  42  2026-04-10 09:15:02  action archive  ok      message 1234 "Quarterly report" (+2 more)
+  41  2026-04-10 09:14:40  action send     error   message 5678 "Re: Budget"
+
+Page 1 of 1 (2 total entries)
+Showing entries that needed triage access or more (--access readOnly to include reads).
+Revert one with: history undo <id>
+```
+
+Status is `ok`, `error` (it failed - the detail says why), `blocked` (Spark refused it, or the user stopped a held send), or `undone`. A `draft --send` is recorded as `action send`, and gets its entry when its 60 seconds are over.
+
+Options:
+- `--access <level>` - lowest access level an entry needed: `readOnly`, `triage` (the default, which leaves reads out), or `send`
+- `--status <status>` - `success`, `error`, or `blocked`
+- `--from` / `--to` - date range (`yyyy-MM-dd`)
+- `--details` - add who ran each entry, every item it touched, its arguments, and its detail
+- `--page`, `--page-size` - pagination (default 50 per page)
+
+**Undo.** `history undo <id>` puts back what a successful `action`, `contact-action`, or draft creation changed - unpins what was pinned, moves back what was moved, deletes a draft `spark` wrote - while its items still exist and still hold the state the entry left them in. It needs **triage** access, as the original command did. A sent email, a deleted draft, and a calendar change can't be undone. Undo only when the user asks for it; the user can also undo an entry in Spark Desktop, under **Agent Activity**.
+
 ## Smart Categories
 
 Spark automatically classifies incoming email into six categories. Use the `category:` filter operator with `emails` and `search` to view mail by category, and use `action` / `contact-action` to reclassify and tune.
@@ -876,9 +913,10 @@ Do not check on every session or before every command - this skill is the source
 - Before writing any draft body, run `draft context` and write in line with the Spark Profile and Custom Instructions it shows; the user's own instructions in the conversation take priority
 - After creating a draft, always share its `Link:` deep link with the user as a clickable markdown link instead of asking them to open Spark
 - `draft --delete <pk>` discards a draft permanently - there is no Trash and no undo, so use it only when the user asked for it; it takes several IDs at once
-- Send or schedule a draft with `draft --send <pk> [--date <date>]`; sending waits 60 seconds for the user to undo it, so confirm the outcome with `history`
+- Send or schedule a draft with `draft --send <pk> [--date <date>]`; sending waits 60 seconds for the user to undo it, so confirm the outcome with `history` after that, and `emails Outbox` as a second check
 - Scheduled and unsent mail is in `emails Outbox`, not in any mail folder - check it before and after scheduling or unscheduling
 - Never end a draft body with a sign-off: Spark appends the account's signature itself (`draft signatures` shows it)
 - Use `comment` to post team chat messages on threads - it auto-shares the thread if needed
 - Use `action` to perform email actions like pin, archive, snooze, move to folder, and more
 - Use `contact-action` to manage contacts - block, accept, change category, toggle auto-summary, and more
+- Use `history` to check what a command did and how it ended; `history undo <id>` reverts an action, contact action, or new draft
