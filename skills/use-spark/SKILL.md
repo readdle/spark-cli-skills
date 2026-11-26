@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.4.3
+  version: 1.4.4
   requires:
     bins:
       - spark
