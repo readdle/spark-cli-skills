@@ -136,6 +136,7 @@ spark emails --new-senders                                     # show only new s
 | `assigned_to:me` | emails assigned to current user |
 | `assigned_to:<email>` | emails assigned to specific teammate |
 | `assigned_to:unassigned` | shared inbox items with no assignee |
+| `is:unassigned` | same as `assigned_to:unassigned` |
 | `assigned_to:other` | emails assigned to someone else (not me) |
 | `assigned_by:me` | emails delegated by current user |
 | `filename:<name>` | `filename:report.pdf` |
