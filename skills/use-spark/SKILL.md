@@ -6,7 +6,7 @@ description: >-
   look up contacts, and view team info. Use when the user asks about their
   emails, calendar, contacts, meetings, or scheduling.
 metadata:
-  version: 1.4.3
+  version: 1.4.4
   requires:
     bins:
       - spark
@@ -652,6 +652,7 @@ Supported actions:
 - `changeCategoryNewsletters` - Change the email category to Newsletter
 - `shareInTeam` - Share the thread with teammates (requires `--team` when multiple teams)
 - `assign` - Assign the email to a teammate (requires `--assignee`)
+- `unassign` - Remove the assignment; in a shared inbox the thread returns to Unassigned. Fails if the thread is not assigned. Outside a shared inbox, reopen a completed delegation first
 - `delegationComplete` - Mark the delegation as complete
 - `delegationReopen` - Reopen a completed delegation
 
@@ -679,6 +680,7 @@ spark action shareInTeam 1234 --team "Engineering" --user alice@co.com  # share 
 spark action shareInTeam 1234 --user alice@co.com --user bob@co.com    # share with multiple
 spark action assign 1234 --assignee bob@co.com                  # assign to teammate
 spark action assign 1234 --assignee bob@co.com --date 2026-04-15 --comment "Please review"
+spark action unassign 1234                                      # remove the assignment
 spark action delegationComplete 1234                            # mark delegation done
 spark action delegationComplete 100 200 300                     # complete multiple delegations
 spark action delegationReopen 1234                              # reopen delegation
