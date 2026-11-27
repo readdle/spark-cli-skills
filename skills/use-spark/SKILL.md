@@ -764,7 +764,7 @@ Options:
 - `--details` - add who ran each entry, every item it touched, its arguments, and its detail
 - `--page`, `--page-size` - pagination (default 50 per page)
 
-**Undo.** `history undo <id>` puts back what a successful `action`, `contact-action`, or draft creation changed - unpins what was pinned, moves back what was moved, deletes a draft `spark` wrote - while its items still exist and still hold the state the entry left them in. It needs **triage** access, as the original command did. A sent email, a deleted draft, and a calendar change can't be undone. Undo only when the user asks for it; the user can also undo an entry in Spark Desktop, under **Agent Activity**.
+**Undo.** `history undo <id>` puts back what a successful `action`, `contact-action`, or draft creation changed - unpins what was pinned, moves back what was moved, deletes a draft `spark` wrote - while its items still exist and still hold the state the entry left them in. It needs **triage** access, as the original command did. Undoing a new draft deletes it permanently, including any edits made since. A sent email, a deleted draft, and a calendar change can't be undone. Undo only when the user asks for it; the user can also undo an entry in Spark Desktop, under **Agent Activity**.
 
 ## Smart Categories
 
