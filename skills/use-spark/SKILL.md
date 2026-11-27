@@ -735,7 +735,7 @@ Use the `contacts` command to look up email addresses.
 
 ### history
 
-Every `spark` command - yours, the user's, and other agents' - is recorded on the user's computer: when it ran, the items it touched, and how it ended. Use `history` to check what a command did, above all the outcome of a `draft --send`, which answers `Queued: …` before anything is sent. Nothing is uploaded, and entries older than 30 days are pruned.
+Every `spark` command - yours, the user's, and other agents' - is recorded on the user's computer: when it ran, the items it touched, and how it ended. Use `history` to check what a command did, above all the outcome of a `draft --send`, which answers `Queued: …` before anything is sent. Entries that touched an account or shared inbox agents can't access (Settings -> AI Agents) are left out. Nothing is uploaded, and entries older than 30 days are pruned.
 
 ```bash
 spark history                                  # recent changes, newest first
