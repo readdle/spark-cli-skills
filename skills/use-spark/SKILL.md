@@ -137,6 +137,7 @@ spark emails --new-senders                                     # show only new s
 | `assigned_to:me` | emails assigned to current user |
 | `assigned_to:<email>` | emails assigned to specific teammate |
 | `assigned_to:unassigned` | shared inbox items with no assignee |
+| `is:unassigned` | same as `assigned_to:unassigned` |
 | `assigned_to:other` | emails assigned to someone else (not me) |
 | `assigned_by:me` | emails delegated by current user |
 | `filename:<name>` | `filename:report.pdf` |
@@ -653,6 +654,7 @@ Supported actions:
 - `changeCategoryNewsletters` - Change the email category to Newsletter
 - `shareInTeam` - Share the thread with teammates (requires `--team` when multiple teams)
 - `assign` - Assign the email to a teammate (requires `--assignee`)
+- `unassign` - Remove the assignment; in a shared inbox the thread returns to Unassigned. Fails if the thread is not assigned. Outside a shared inbox, reopen a completed delegation first
 - `delegationComplete` - Mark the delegation as complete
 - `delegationReopen` - Reopen a completed delegation
 
@@ -680,6 +682,7 @@ spark action shareInTeam 1234 --team "Engineering" --user alice@co.com  # share 
 spark action shareInTeam 1234 --user alice@co.com --user bob@co.com    # share with multiple
 spark action assign 1234 --assignee bob@co.com                  # assign to teammate
 spark action assign 1234 --assignee bob@co.com --date 2026-04-15 --comment "Please review"
+spark action unassign 1234                                      # remove the assignment
 spark action delegationComplete 1234                            # mark delegation done
 spark action delegationComplete 100 200 300                     # complete multiple delegations
 spark action delegationReopen 1234                              # reopen delegation

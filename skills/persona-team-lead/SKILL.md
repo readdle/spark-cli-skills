@@ -117,6 +117,10 @@ When following up on delegated work:
    ```bash
    spark action delegationReopen <id>
    ```
+4. Remove an assignment that went to the wrong person, or send a shared inbox item back to Unassigned:
+   ```bash
+   spark action unassign <id>
+   ```
 
 ## Tips
 

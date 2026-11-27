@@ -82,6 +82,12 @@ If more work is needed:
 spark action delegationReopen <id>
 ```
 
+If it went to the wrong person, remove the assignment and assign it again:
+
+```bash
+spark action unassign <id>
+```
+
 ## Tips
 
 - Always include a `--comment` when assigning - it saves the assignee from having to re-read the entire thread.
